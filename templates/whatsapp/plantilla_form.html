@@ -63,18 +63,42 @@
 
           {% if proveedor == PROVEEDOR_TWILIO %}
           <div class="info-box">
-            <strong>Plantilla de Twilio:</strong> creá la plantilla en la consola de Twilio
-            (<strong>Content Template Builder</strong>), esperá su aprobación y pegá acá el
-            <code>ContentSid</code> (empieza con <code>HX</code>). Fuera de la ventana de 24hs,
-            WhatsApp solo permite enviar plantillas aprobadas vía ese ContentSid.
+            <strong>Plantilla de Twilio — pasos:</strong><br>
+            1. Creala en la consola de Twilio (<strong>Content Template Builder</strong>) usando
+            variables posicionales <code>&#123;&#123;1&#125;&#125;</code>, <code>&#123;&#123;2&#125;&#125;</code>…<br>
+            2. Esperá que WhatsApp la apruebe y copiá el <code>ContentSid</code> (empieza con <code>HX</code>).<br>
+            3. Pegá el ContentSid acá abajo y replicá el mismo cuerpo y variables.
           </div>
 
           <div class="form-group">
             <label>Twilio ContentSid</label>
             <input type="text" name="twilio_content_sid" value="{{ obj.twilio_content_sid|default:data.twilio_content_sid|default:'' }}"
                    placeholder="HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-            <p class="hint">El cuerpo y las variables de abajo deben coincidir con los de la plantilla en Twilio (las variables se mapean por posición: 1, 2, 3…).</p>
+            <p class="hint">El cuerpo y las variables de abajo deben coincidir con los de la plantilla en Twilio.</p>
           </div>
+
+          <div class="info-box" style="background:#0c1a2e; border-color:#1e3a5f;">
+            <strong>Cómo funcionan las variables (importante):</strong><br><br>
+            La plantilla en Twilio tiene "huecos" numerados: <code>&#123;&#123;1&#125;&#125;</code>,
+            <code>&#123;&#123;2&#125;&#125;</code>, <code>&#123;&#123;3&#125;&#125;</code>…<br>
+            En <strong>"Nombres de variables"</strong> (más abajo) ponés una etiqueta por línea,
+            <strong>en el mismo orden</strong>. La 1ª línea es el hueco <code>&#123;&#123;1&#125;&#125;</code>,
+            la 2ª es <code>&#123;&#123;2&#125;&#125;</code>, etc. Son solo etiquetas para que sepas qué va en cada hueco.<br><br>
+            <strong>Ejemplo</strong> — cuerpo en Twilio:<br>
+            <code>Hola &#123;&#123;1&#125;&#125;, tu plan &#123;&#123;2&#125;&#125; vence el &#123;&#123;3&#125;&#125;.</code><br>
+            Nombres de variables (una por línea, mismo orden):<br>
+            <code>nombre</code> · <code>plan</code> · <code>vencimiento</code><br><br>
+            Después, al armar la <strong>difusión</strong>, completás el valor de cada hueco. Cada valor puede ser:<br>
+            • <strong>Texto fijo</strong> (igual para todos): <code>Premium</code><br>
+            • <strong>Dato del contacto</strong> (distinto para cada uno), entre llaves simples:
+            <code>&#123;nombre&#125;</code>, <code>&#123;telefono&#125;</code>, <code>&#123;saldo_pendiente&#125;</code>
+            (cualquier campo del Excel).<br><br>
+            ⚠️ El <strong>orden</strong> tiene que coincidir exactamente con el de Twilio: si los cruzás, los
+            datos salen en el lugar equivocado.
+          </div>
+          {% endif %}
+
+          {% if proveedor == PROVEEDOR_TWILIO %}
 
           {% if obj %}
           <div class="form-group">

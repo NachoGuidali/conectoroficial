@@ -291,6 +291,13 @@
               </select>
             </div>
             <div id="vars-container"></div>
+            <div id="vars-help" style="display:none; font-size:12px; color:var(--text3); margin-top:8px; line-height:1.6; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px;">
+              En cada variable (<code>&#123;&#123;1&#125;&#125;</code>, <code>&#123;&#123;2&#125;&#125;</code>…) podés poner:<br>
+              • <strong>Texto fijo</strong> (igual para todos): ej. <code>Premium</code><br>
+              • <strong>Dato del contacto</strong> (distinto para cada uno), entre llaves simples:
+              <code>&#123;nombre&#125;</code>, <code>&#123;telefono&#125;</code> o cualquier campo del Excel.<br>
+              El orden coincide con los huecos de la plantilla en Twilio/Meta.
+            </div>
           </div>
 
           <!-- Vista previa del mensaje -->
@@ -592,14 +599,17 @@ function loadPlantilla() {
   const cuerpo = opt?.dataset?.cuerpo || '';
   const numVars = parseInt(opt?.dataset?.vars || '0');
   const container = document.getElementById('vars-container');
+  const help = document.getElementById('vars-help');
 
   if (numVars > 0) {
     container.innerHTML = `<div class="form-row"><label class="form-label">Variables de la plantilla</label>` +
       Array.from({length: numVars}, (_, i) =>
         `<input type="text" name="var_${i+1}" class="form-input" placeholder="Variable ${'{{'+(i+1)+'}}'}}" oninput="updateMsgPreview()" style="margin-bottom:8px;">`
       ).join('') + `</div>`;
+    if (help) help.style.display = 'block';
   } else {
     container.innerHTML = '';
+    if (help) help.style.display = 'none';
   }
   updateMsgPreview();
 }
