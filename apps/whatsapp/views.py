@@ -656,9 +656,18 @@ class PlantillaListView(LoginRequiredMixin, ListView):
 class PlantillaCreateView(LoginRequiredMixin, View):
     template_name = 'whatsapp/plantilla_form.html'
 
+    # Todas las claves que el template puede leer vía `data.X`. Tienen que existir
+    # siempre: cuando `data.X` se usa como argumento del filtro `default`, Django
+    # re-lanza VariableDoesNotExist si falta la clave (no la silencia).
+    EMPTY_DATA = {
+        'nombre': '', 'cuerpo': '', 'variables_raw': '',
+        'meta_nombre': '', 'meta_idioma': 'es_AR', 'meta_categoria': '',
+        'twilio_content_sid': '',
+    }
+
     def get(self, request):
         return render(request, self.template_name, {
-            'data': {'nombre': '', 'cuerpo': ''},
+            'data': dict(self.EMPTY_DATA),
             'CATEGORIA_CHOICES': PlantillaHSM.CATEGORIA_CHOICES,
             'proveedor': get_proveedor(),
             'PROVEEDOR_TWILIO': PROVEEDOR_TWILIO,
@@ -670,7 +679,8 @@ class PlantillaCreateView(LoginRequiredMixin, View):
         if not nombre or not cuerpo:
             messages.error(request, 'Nombre y cuerpo son requeridos.')
             return render(request, self.template_name, {
-                'data': request.POST.dict(), 'CATEGORIA_CHOICES': PlantillaHSM.CATEGORIA_CHOICES,
+                'data': {**self.EMPTY_DATA, **request.POST.dict()},
+                'CATEGORIA_CHOICES': PlantillaHSM.CATEGORIA_CHOICES,
                 'proveedor': get_proveedor(), 'PROVEEDOR_TWILIO': PROVEEDOR_TWILIO,
             })
         vars_raw = request.POST.get('variables_raw', '').strip()
