@@ -6,7 +6,7 @@ Plataforma de WhatsApp tipo WATI, construida con Django + WhatsApp Cloud API (of
 
 - **Backend:** Django 5.1 + Celery + Redis
 - **DB:** PostgreSQL 15
-- **WhatsApp:** WhatsApp Cloud API (Meta, oficial)
+- **WhatsApp:** WhatsApp Cloud API (Meta, oficial) o Twilio — proveedor intercambiable
 - **Frontend:** Django Templates (sin frameworks JS)
 - **Infra:** Docker + docker-compose
 
@@ -70,6 +70,19 @@ docker-compose exec web python manage.py createsuperuser
 | Config | `/whatsapp/config/` | Credenciales de WhatsApp Cloud API |
 | Usuarios | `/usuarios/` | ABM de usuarios y roles |
 
+## Proveedores (Meta / Twilio)
+
+El conector soporta dos proveedores de WhatsApp, intercambiables sin tocar código:
+
+- **Meta Cloud API** (default, más barato): conexión directa con la Graph API.
+- **Twilio** (intermediario / BSP): útil mientras se completa la verificación de Meta.
+
+Se selecciona en **Configuración** (`/whatsapp/config/`) o con `WHATSAPP_PROVIDER` en el `.env`.
+La app de Configuración muestra los campos del proveedor activo y la URL de webhook a pegar en cada
+consola. Con Twilio, las Plantillas se crean en el *Content Template Builder* de Twilio y se vinculan
+pegando su **ContentSid** (`HX…`) en la plantilla local. La ventana de 24hs y el bloqueo de envíos
+libres fuera de ella aplican igual con ambos proveedores.
+
 ## Ventana de 24hs y Plantillas
 
 Meta solo permite mensajes de **texto/media libres** dentro de las 24hs posteriores al último
@@ -105,12 +118,16 @@ Si la ventana de 24hs está cerrada, esta API devuelve `409` con
 | `SECRET_KEY` | Clave secreta Django |
 | `POSTGRES_*` | Credenciales PostgreSQL |
 | `REDIS_URL` | URL de Redis |
+| `WHATSAPP_PROVIDER` | Proveedor activo: `meta` (default) o `twilio` |
 | `META_ACCESS_TOKEN` | Token de acceso permanente de Meta |
 | `META_PHONE_NUMBER_ID` | ID del número de teléfono en Meta |
 | `META_WABA_ID` | ID de la WhatsApp Business Account |
 | `META_APP_SECRET` | App Secret, para verificar la firma del webhook |
 | `META_API_VERSION` | Versión de la Graph API (default `v21.0`) |
 | `WHATSAPP_VERIFY_TOKEN` | Verify Token del handshake del webhook |
+| `TWILIO_ACCOUNT_SID` | Account SID de Twilio (solo si `WHATSAPP_PROVIDER=twilio`) |
+| `TWILIO_AUTH_TOKEN` | Auth Token de Twilio; también valida la firma del webhook |
+| `TWILIO_WHATSAPP_FROM` | Número de WhatsApp en Twilio, formato E.164 (ej. `+14155238886`) |
 | `PUBLIC_URL` | URL pública del servidor (para que Meta descargue media saliente) |
 | `N8N_WEBHOOK_URL` | URL de n8n (opcional) |
 | `CRM_API_KEY` | API Key para envío externo desde n8n |

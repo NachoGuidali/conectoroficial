@@ -15,7 +15,8 @@ from django.views.decorators.csrf import csrf_exempt
 from apps.users.models import User
 from .models import Conversacion, Mensaje, PlantillaHSM, ConfiguracionWhatsApp
 from .tasks import process_incoming_message, send_whatsapp_message_task
-from .webhook import parse_incoming_webhook, verify_webhook_get, verify_signature
+from . import webhook_meta, webhook_twilio
+from .sender import get_proveedor, PROVEEDOR_TWILIO
 
 logger = logging.getLogger('apps.whatsapp')
 
@@ -41,28 +42,53 @@ def _get_convs_qs(user, include_archived=False):
 @method_decorator(csrf_exempt, name='dispatch')
 class WebhookView(View):
     def get(self, request):
+        # Twilio no hace handshake GET; solo Meta lo usa al suscribir el webhook.
+        if get_proveedor() == PROVEEDOR_TWILIO:
+            return HttpResponse('OK', status=200)
         mode = request.GET.get('hub.mode', '')
         token = request.GET.get('hub.verify_token', '')
         challenge = request.GET.get('hub.challenge', '')
         configured_token = ConfiguracionWhatsApp.get_setting('meta_verify_token')
-        if verify_webhook_get(mode, token, configured_token):
+        if webhook_meta.verify_webhook_get(mode, token, configured_token):
             return HttpResponse(challenge, status=200)
         return HttpResponse('Forbidden', status=403)
 
     def post(self, request):
+        if get_proveedor() == PROVEEDOR_TWILIO:
+            return self._post_twilio(request)
+        return self._post_meta(request)
+
+    def _post_meta(self, request):
         app_secret = ConfiguracionWhatsApp.get_setting('meta_app_secret')
         signature = request.headers.get('X-Hub-Signature-256', '')
-        if app_secret and not verify_signature(request.body, signature, app_secret):
+        if app_secret and not webhook_meta.verify_signature(request.body, signature, app_secret):
             logger.warning('Webhook rechazado — firma inválida')
             return HttpResponse('Forbidden', status=403)
         try:
             payload = json.loads(request.body)
-            messages_data = parse_incoming_webhook(payload)
+            messages_data = webhook_meta.parse_incoming_webhook(payload)
             for msg_data in messages_data:
                 process_incoming_message.delay(msg_data)
         except Exception as e:
             logger.exception('Webhook error: %s', e)
         return HttpResponse('OK', status=200)
+
+    def _post_twilio(self, request):
+        auth_token = ConfiguracionWhatsApp.get_setting('twilio_auth_token')
+        signature = request.headers.get('X-Twilio-Signature', '')
+        params = request.POST.dict()
+        url = webhook_twilio.webhook_url(request)
+        if auth_token and not webhook_twilio.validate_signature(url, params, signature, auth_token):
+            logger.warning('Webhook Twilio rechazado — firma inválida')
+            return HttpResponse('Forbidden', status=403)
+        try:
+            messages_data = webhook_twilio.parse_incoming_webhook(params)
+            for msg_data in messages_data:
+                process_incoming_message.delay(msg_data)
+        except Exception as e:
+            logger.exception('Webhook Twilio error: %s', e)
+        # Twilio espera 200 con TwiML (puede ser vacío).
+        return HttpResponse('<Response></Response>', content_type='text/xml', status=200)
 
 
 class InboxView(LoginRequiredMixin, View):
@@ -634,6 +660,8 @@ class PlantillaCreateView(LoginRequiredMixin, View):
         return render(request, self.template_name, {
             'data': {'nombre': '', 'cuerpo': ''},
             'CATEGORIA_CHOICES': PlantillaHSM.CATEGORIA_CHOICES,
+            'proveedor': get_proveedor(),
+            'PROVEEDOR_TWILIO': PROVEEDOR_TWILIO,
         })
 
     def post(self, request):
@@ -641,16 +669,30 @@ class PlantillaCreateView(LoginRequiredMixin, View):
         cuerpo = request.POST.get('cuerpo', '').strip()
         if not nombre or not cuerpo:
             messages.error(request, 'Nombre y cuerpo son requeridos.')
-            return render(request, self.template_name, {'data': request.POST.dict()})
+            return render(request, self.template_name, {
+                'data': request.POST.dict(), 'CATEGORIA_CHOICES': PlantillaHSM.CATEGORIA_CHOICES,
+                'proveedor': get_proveedor(), 'PROVEEDOR_TWILIO': PROVEEDOR_TWILIO,
+            })
         vars_raw = request.POST.get('variables_raw', '').strip()
         variables = [v.strip() for v in vars_raw.splitlines() if v.strip()] if vars_raw else []
+        content_sid = request.POST.get('twilio_content_sid', '').strip()
         plantilla = PlantillaHSM.objects.create(
             nombre=nombre, cuerpo=cuerpo, variables=variables,
             meta_nombre=request.POST.get('meta_nombre', '').strip(),
             meta_idioma=request.POST.get('meta_idioma', '').strip() or 'es_AR',
             meta_categoria=request.POST.get('meta_categoria', '').strip() or PlantillaHSM.CATEGORIA_UTILITY,
+            twilio_content_sid=content_sid,
         )
-        if request.POST.get('enviar_a_meta') == 'on':
+        if get_proveedor() == PROVEEDOR_TWILIO:
+            # Con Twilio la plantilla ya está creada/aprobada en su consola; el ContentSid
+            # la habilita para enviar fuera de la ventana de 24hs.
+            if content_sid:
+                plantilla.meta_estado = PlantillaHSM.ESTADO_APPROVED
+                plantilla.save(update_fields=['meta_estado'])
+                messages.success(request, 'Plantilla creada y vinculada al ContentSid de Twilio.')
+            else:
+                messages.warning(request, 'Plantilla creada, pero sin ContentSid no se puede enviar fuera de la ventana de 24hs.')
+        elif request.POST.get('enviar_a_meta') == 'on':
             from .sender import create_template_on_meta
             result = create_template_on_meta(plantilla)
             if result.get('id'):
@@ -675,9 +717,11 @@ class PlantillaUpdateView(LoginRequiredMixin, View):
             'nombre': p.nombre or '', 'cuerpo': p.cuerpo or '',
             'meta_nombre': p.meta_nombre, 'meta_idioma': p.meta_idioma,
             'meta_categoria': p.meta_categoria,
+            'twilio_content_sid': p.twilio_content_sid,
         }
         return render(request, self.template_name, {
             'obj': p, 'data': data, 'CATEGORIA_CHOICES': PlantillaHSM.CATEGORIA_CHOICES,
+            'proveedor': get_proveedor(), 'PROVEEDOR_TWILIO': PROVEEDOR_TWILIO,
         })
 
     def post(self, request, pk):
@@ -689,7 +733,11 @@ class PlantillaUpdateView(LoginRequiredMixin, View):
         p.meta_nombre = request.POST.get('meta_nombre', p.meta_nombre).strip()
         p.meta_idioma = request.POST.get('meta_idioma', p.meta_idioma).strip() or 'es_AR'
         p.meta_categoria = request.POST.get('meta_categoria', p.meta_categoria).strip()
+        p.twilio_content_sid = request.POST.get('twilio_content_sid', p.twilio_content_sid).strip()
         p.activa = request.POST.get('activa') == 'on'
+        # Con Twilio, un ContentSid presente habilita la plantilla para enviar fuera de la ventana.
+        if get_proveedor() == PROVEEDOR_TWILIO and p.twilio_content_sid and p.meta_estado == PlantillaHSM.ESTADO_LOCAL:
+            p.meta_estado = PlantillaHSM.ESTADO_APPROVED
         p.save()
         messages.success(request, 'Plantilla actualizada. Si ya estaba aprobada en Meta, el cambio de texto no se sincroniza solo: usá "Sincronizar desde Meta" o editala en Meta Business Manager.')
         return redirect('whatsapp:plantilla_list')
@@ -719,28 +767,46 @@ class ConfigView(SupervisorRequiredMixin, View):
         except ConfiguracionWhatsApp.DoesNotExist:
             config = ConfiguracionWhatsApp()
         phone_info = {}
-        if config.meta_access_token and config.meta_phone_number_id:
+        if config.proveedor == ConfiguracionWhatsApp.PROVEEDOR_TWILIO:
+            if config.twilio_account_sid and config.twilio_auth_token:
+                from .sender import get_phone_number_info
+                phone_info = get_phone_number_info()
+        elif config.meta_access_token and config.meta_phone_number_id:
             from .sender import get_phone_number_info
             phone_info = get_phone_number_info()
-        return render(request, self.template_name, {'config': config, 'phone_info': phone_info})
+        return render(request, self.template_name, {
+            'config': config, 'phone_info': phone_info,
+            'PROVEEDOR_CHOICES': ConfiguracionWhatsApp.PROVEEDOR_CHOICES,
+        })
 
     def post(self, request):
         try:
             config = ConfiguracionWhatsApp.objects.get(pk=1)
         except ConfiguracionWhatsApp.DoesNotExist:
             config = ConfiguracionWhatsApp()
+        config.proveedor = request.POST.get('proveedor', '').strip() or ConfiguracionWhatsApp.PROVEEDOR_META
         config.meta_access_token = request.POST.get('meta_access_token', '').strip()
         config.meta_phone_number_id = request.POST.get('meta_phone_number_id', '').strip()
         config.meta_waba_id = request.POST.get('meta_waba_id', '').strip()
         config.meta_app_secret = request.POST.get('meta_app_secret', '').strip()
         config.meta_verify_token = request.POST.get('meta_verify_token', '').strip()
         config.meta_api_version = request.POST.get('meta_api_version', '').strip() or 'v21.0'
+        config.twilio_account_sid = request.POST.get('twilio_account_sid', '').strip()
+        config.twilio_auth_token = request.POST.get('twilio_auth_token', '').strip()
+        config.twilio_whatsapp_from = request.POST.get('twilio_whatsapp_from', '').strip()
         config.save()
-        messages.success(
-            request,
-            'Configuración guardada. Pegá la URL del webhook y el Verify Token en '
-            'Meta for Developers → tu app → WhatsApp → Configuración.',
-        )
+        if config.proveedor == ConfiguracionWhatsApp.PROVEEDOR_TWILIO:
+            messages.success(
+                request,
+                'Configuración guardada. En la consola de Twilio, configurá el webhook entrante '
+                'apuntando a esta URL (método POST).',
+            )
+        else:
+            messages.success(
+                request,
+                'Configuración guardada. Pegá la URL del webhook y el Verify Token en '
+                'Meta for Developers → tu app → WhatsApp → Configuración.',
+            )
         return redirect('whatsapp:config')
 
 

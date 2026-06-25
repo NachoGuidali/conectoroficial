@@ -1,3 +1,4 @@
+"""Parser de webhook: WhatsApp Cloud API (Meta)."""
 import hashlib
 import hmac
 import logging

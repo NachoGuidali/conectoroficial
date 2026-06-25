@@ -371,12 +371,16 @@ al host (`127.0.0.1:8000`, `:8004`, `:8005`).
 | `POSTGRES_HOST` | Host DB (servicio Docker) | `db` |
 | `POSTGRES_PORT` | Puerto PostgreSQL | `5432` |
 | `REDIS_URL` | URL Redis | `redis://redis:6379/0` |
+| `WHATSAPP_PROVIDER` | Proveedor activo de WhatsApp | `meta` o `twilio` |
 | `META_ACCESS_TOKEN` | Token de acceso permanente de Meta | Cadena larga (System User) |
 | `META_PHONE_NUMBER_ID` | ID del número en Meta | Numérico |
 | `META_WABA_ID` | ID de la WhatsApp Business Account | Numérico |
 | `META_APP_SECRET` | App Secret (firma del webhook) | Cadena de Meta |
 | `META_API_VERSION` | Versión de la Graph API | `v21.0` |
 | `WHATSAPP_VERIFY_TOKEN` | Verify Token del handshake del webhook | Cadena aleatoria |
+| `TWILIO_ACCOUNT_SID` | Account SID de Twilio (si `WHATSAPP_PROVIDER=twilio`) | `AC...` |
+| `TWILIO_AUTH_TOKEN` | Auth Token de Twilio (también valida el webhook) | Cadena de Twilio |
+| `TWILIO_WHATSAPP_FROM` | Número de WhatsApp en Twilio | E.164 (`+1...`) |
 | `PUBLIC_URL` | URL pública del servidor | `https://sociosras.supregsolutions.com` |
 | `N8N_WEBHOOK_URL` | URL n8n (opcional) | `https://...` |
 | `CRM_API_KEY` | API key para n8n (opcional) | Cadena aleatoria |

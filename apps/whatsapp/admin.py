@@ -3,7 +3,7 @@ from .models import Conversacion, Mensaje, PlantillaHSM, ConfiguracionWhatsApp, 
 
 @admin.register(ConfiguracionWhatsApp)
 class ConfigAdmin(admin.ModelAdmin):
-    list_display = ('meta_phone_number_id', 'meta_waba_id', 'updated_at')
+    list_display = ('proveedor', 'meta_phone_number_id', 'twilio_whatsapp_from', 'updated_at')
 
 @admin.register(Conversacion)
 class ConversacionAdmin(admin.ModelAdmin):

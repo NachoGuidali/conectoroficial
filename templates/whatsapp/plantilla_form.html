@@ -61,6 +61,30 @@
                    required placeholder="ej: Bienvenida, Recordatorio pago">
           </div>
 
+          {% if proveedor == PROVEEDOR_TWILIO %}
+          <div class="info-box">
+            <strong>Plantilla de Twilio:</strong> creá la plantilla en la consola de Twilio
+            (<strong>Content Template Builder</strong>), esperá su aprobación y pegá acá el
+            <code>ContentSid</code> (empieza con <code>HX</code>). Fuera de la ventana de 24hs,
+            WhatsApp solo permite enviar plantillas aprobadas vía ese ContentSid.
+          </div>
+
+          <div class="form-group">
+            <label>Twilio ContentSid</label>
+            <input type="text" name="twilio_content_sid" value="{{ obj.twilio_content_sid|default:data.twilio_content_sid|default:'' }}"
+                   placeholder="HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+            <p class="hint">El cuerpo y las variables de abajo deben coincidir con los de la plantilla en Twilio (las variables se mapean por posición: 1, 2, 3…).</p>
+          </div>
+
+          {% if obj %}
+          <div class="form-group">
+            <p class="hint">Estado: <strong>{{ obj.get_meta_estado_display }}</strong>
+              {% if not obj.twilio_content_sid %}— cargá el ContentSid para poder enviarla fuera de la ventana de 24hs{% endif %}
+            </p>
+          </div>
+          {% endif %}
+
+          {% else %}
           <div class="info-box">
             <strong>Plantilla de Meta:</strong> fuera de la ventana de 24hs, WhatsApp solo permite
             mandar plantillas <strong>aprobadas</strong> con este mismo nombre técnico, idioma y
@@ -104,6 +128,7 @@
               {% if obj.meta_rejected_reason %}— {{ obj.meta_rejected_reason }}{% endif %}
             </p>
           </div>
+          {% endif %}
           {% endif %}
 
           <div class="info-box">

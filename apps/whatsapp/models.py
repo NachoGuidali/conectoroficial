@@ -6,12 +6,31 @@ from django.core.cache import cache
 
 
 class ConfiguracionWhatsApp(models.Model):
+    PROVEEDOR_META = 'meta'
+    PROVEEDOR_TWILIO = 'twilio'
+    PROVEEDOR_CHOICES = [
+        (PROVEEDOR_META, 'Meta Cloud API (oficial)'),
+        (PROVEEDOR_TWILIO, 'Twilio'),
+    ]
+
+    proveedor = models.CharField(
+        max_length=20, choices=PROVEEDOR_CHOICES, default=PROVEEDOR_META,
+        help_text='Proveedor de WhatsApp activo. Meta es más barato; Twilio es un intermediario (BSP).',
+    )
+
+    # ── Meta Cloud API ──────────────────────────────────────────────────────
     meta_access_token = models.CharField(max_length=600, blank=True, help_text='Token de acceso permanente (System User) de Meta.')
     meta_phone_number_id = models.CharField(max_length=100, blank=True)
     meta_waba_id = models.CharField(max_length=100, blank=True, verbose_name='WhatsApp Business Account ID')
     meta_app_secret = models.CharField(max_length=200, blank=True, help_text='App Secret de la app de Meta, para verificar la firma del webhook.')
     meta_verify_token = models.CharField(max_length=200, blank=True, help_text='Token que se configura en Meta al suscribir el webhook.')
     meta_api_version = models.CharField(max_length=20, default='v21.0')
+
+    # ── Twilio ──────────────────────────────────────────────────────────────
+    twilio_account_sid = models.CharField(max_length=100, blank=True, verbose_name='Twilio Account SID')
+    twilio_auth_token = models.CharField(max_length=100, blank=True, help_text='Auth Token de Twilio, también valida la firma del webhook.')
+    twilio_whatsapp_from = models.CharField(max_length=40, blank=True, help_text='Número de WhatsApp habilitado en Twilio (ej. +14155238886).')
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -29,12 +48,16 @@ class ConfiguracionWhatsApp(models.Model):
             try:
                 obj = cls.objects.get(pk=1)
                 config = {
+                    'proveedor': obj.proveedor,
                     'meta_access_token': obj.meta_access_token,
                     'meta_phone_number_id': obj.meta_phone_number_id,
                     'meta_waba_id': obj.meta_waba_id,
                     'meta_app_secret': obj.meta_app_secret,
                     'meta_verify_token': obj.meta_verify_token,
                     'meta_api_version': obj.meta_api_version,
+                    'twilio_account_sid': obj.twilio_account_sid,
+                    'twilio_auth_token': obj.twilio_auth_token,
+                    'twilio_whatsapp_from': obj.twilio_whatsapp_from,
                 }
             except cls.DoesNotExist:
                 config = {}
@@ -177,6 +200,10 @@ class PlantillaHSM(models.Model):
     meta_estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default=ESTADO_LOCAL)
     meta_template_id = models.CharField(max_length=100, blank=True)
     meta_rejected_reason = models.TextField(blank=True)
+    twilio_content_sid = models.CharField(
+        max_length=64, blank=True, verbose_name='Twilio ContentSid',
+        help_text='ContentSid de la plantilla creada en la consola de Twilio (empieza con HX).',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

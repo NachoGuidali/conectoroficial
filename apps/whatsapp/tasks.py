@@ -110,13 +110,11 @@ def process_incoming_message(self, message_data: dict):
         media_url = message_data.get('media_url', '')
         message_id = message_data.get('message_id', '')
 
-        # Para media recibida, descargar y guardar localmente (evita .enc)
-        if msg_type in ('image', 'audio', 'video', 'document', 'sticker') and message_id:
+        # Para media recibida, descargar y guardar localmente (evita .enc).
+        # El backend (Meta/Twilio) extrae del dict lo que necesita (media_id vs media_url).
+        if msg_type in ('image', 'audio', 'video', 'document', 'sticker'):
             from .sender import download_and_save_media
-            local_url = download_and_save_media(
-                message_id, conv.pk,
-                filename=message_data.get('media_filename', ''),
-            )
+            local_url = download_and_save_media(message_data, conv.pk)
             if local_url:
                 media_url = local_url
 

@@ -5,6 +5,7 @@ django-celery-beat==2.7.0
 django-celery-results==2.5.1
 psycopg2-binary==2.9.9
 requests==2.31.0
+twilio==9.3.7
 python-dotenv==1.0.1
 whitenoise==6.6.0
 gunicorn==21.2.0

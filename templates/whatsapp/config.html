@@ -56,35 +56,65 @@
 <div class="page">
   <div class="col">
 
-    <!-- Configuración WhatsApp Cloud API (Meta) -->
+    <!-- Configuración del proveedor de WhatsApp -->
     <div class="card">
-      <h2>WhatsApp Cloud API (Meta)</h2>
+      <h2>Proveedor de WhatsApp</h2>
       <form method="post">
         {% csrf_token %}
         <div class="form-group">
-          <label>Access Token</label>
-          <input type="text" name="meta_access_token" value="{{ config.meta_access_token }}" placeholder="EAAxxxxxxxxxxxxx">
+          <label>Proveedor activo</label>
+          <select name="proveedor" id="proveedor-select" onchange="toggleProveedor()"
+                  style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 12px; color:var(--text); font-size:13px;">
+            {% for value, label in PROVEEDOR_CHOICES %}
+              <option value="{{ value }}" {% if config.proveedor == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="form-group">
-          <label>Phone Number ID</label>
-          <input type="text" name="meta_phone_number_id" value="{{ config.meta_phone_number_id }}" placeholder="1234567890">
+
+        <!-- Campos Meta -->
+        <div id="meta-fields">
+          <div class="form-group">
+            <label>Access Token</label>
+            <input type="text" name="meta_access_token" value="{{ config.meta_access_token }}" placeholder="EAAxxxxxxxxxxxxx">
+          </div>
+          <div class="form-group">
+            <label>Phone Number ID</label>
+            <input type="text" name="meta_phone_number_id" value="{{ config.meta_phone_number_id }}" placeholder="1234567890">
+          </div>
+          <div class="form-group">
+            <label>WhatsApp Business Account ID (WABA)</label>
+            <input type="text" name="meta_waba_id" value="{{ config.meta_waba_id }}" placeholder="1234567890">
+          </div>
+          <div class="form-group">
+            <label>App Secret</label>
+            <input type="text" name="meta_app_secret" value="{{ config.meta_app_secret }}" placeholder="usado para firmar el webhook">
+          </div>
+          <div class="form-group">
+            <label>Verify Token del webhook</label>
+            <input type="text" name="meta_verify_token" value="{{ config.meta_verify_token }}" placeholder="token-secreto">
+          </div>
+          <div class="form-group">
+            <label>Versión de la API</label>
+            <input type="text" name="meta_api_version" value="{{ config.meta_api_version|default:'v21.0' }}" placeholder="v21.0">
+          </div>
         </div>
-        <div class="form-group">
-          <label>WhatsApp Business Account ID (WABA)</label>
-          <input type="text" name="meta_waba_id" value="{{ config.meta_waba_id }}" placeholder="1234567890">
+
+        <!-- Campos Twilio -->
+        <div id="twilio-fields">
+          <div class="form-group">
+            <label>Account SID</label>
+            <input type="text" name="twilio_account_sid" value="{{ config.twilio_account_sid }}" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+          </div>
+          <div class="form-group">
+            <label>Auth Token</label>
+            <input type="text" name="twilio_auth_token" value="{{ config.twilio_auth_token }}" placeholder="usado también para validar la firma del webhook">
+          </div>
+          <div class="form-group">
+            <label>Número de WhatsApp (From)</label>
+            <input type="text" name="twilio_whatsapp_from" value="{{ config.twilio_whatsapp_from }}" placeholder="+14155238886">
+          </div>
         </div>
-        <div class="form-group">
-          <label>App Secret</label>
-          <input type="text" name="meta_app_secret" value="{{ config.meta_app_secret }}" placeholder="usado para firmar el webhook">
-        </div>
-        <div class="form-group">
-          <label>Verify Token del webhook</label>
-          <input type="text" name="meta_verify_token" value="{{ config.meta_verify_token }}" placeholder="token-secreto">
-        </div>
-        <div class="form-group">
-          <label>Versión de la API</label>
-          <input type="text" name="meta_api_version" value="{{ config.meta_api_version|default:'v21.0' }}" placeholder="v21.0">
-        </div>
+
         <button type="submit" class="btn btn-green">Guardar</button>
       </form>
     </div>
@@ -92,10 +122,15 @@
     <!-- Info webhook -->
     <div class="card">
       <h2>Webhook</h2>
-      <p style="font-size:13px; color:var(--text3); margin-bottom:10px;">
+      <p id="webhook-note-meta" style="font-size:13px; color:var(--text3); margin-bottom:10px;">
         Pegá esta URL y el Verify Token de arriba en
         <strong>Meta for Developers → tu app → WhatsApp → Configuración → Webhook</strong>.
         Suscribite al campo <code>messages</code>.
+      </p>
+      <p id="webhook-note-twilio" style="font-size:13px; color:var(--text3); margin-bottom:10px;">
+        Pegá esta URL en la consola de Twilio en
+        <strong>Messaging → Senders → WhatsApp senders → tu número → Webhook URL for incoming messages</strong>
+        (método <code>POST</code>).
       </p>
       <input type="text" readonly value="{{ request.scheme }}://{{ request.get_host }}{% url 'whatsapp:webhook' %}"
              onclick="this.select()" style="cursor:pointer;">
@@ -135,6 +170,18 @@
 
 {% block extra_js %}
 <script>
+function toggleProveedor() {
+  const prov = document.getElementById('proveedor-select').value;
+  const isTwilio = prov === 'twilio';
+  document.getElementById('meta-fields').style.display = isTwilio ? 'none' : 'block';
+  document.getElementById('twilio-fields').style.display = isTwilio ? 'block' : 'none';
+  const noteMeta = document.getElementById('webhook-note-meta');
+  const noteTwilio = document.getElementById('webhook-note-twilio');
+  if (noteMeta) noteMeta.style.display = isTwilio ? 'none' : 'block';
+  if (noteTwilio) noteTwilio.style.display = isTwilio ? 'block' : 'none';
+}
+toggleProveedor();
+
 async function checkStatus() {
   const res = await fetch('{% url "whatsapp:connection_status" %}');
   const data = await res.json();

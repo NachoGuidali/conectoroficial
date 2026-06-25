@@ -101,6 +101,10 @@ CELERY_TASK_ROUTES = {
     'apps.difusiones.*': {'queue': 'default'},
 }
 
+# Proveedor de WhatsApp activo: 'meta' (Cloud API oficial) o 'twilio'.
+# Se puede sobreescribir desde Configuración en la app; este es el valor por defecto.
+PROVEEDOR = os.environ.get('WHATSAPP_PROVIDER', 'meta')
+
 # WhatsApp Cloud API (Meta)
 META_ACCESS_TOKEN = os.environ.get('META_ACCESS_TOKEN', '')
 META_PHONE_NUMBER_ID = os.environ.get('META_PHONE_NUMBER_ID', '')
@@ -110,6 +114,11 @@ META_API_VERSION = os.environ.get('META_API_VERSION', 'v21.0')
 
 # Verify token del handshake del webhook (Meta for Developers → WhatsApp → Configuración)
 META_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', '')
+
+# Twilio (proveedor alternativo)
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')
 
 # n8n
 N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', '')
