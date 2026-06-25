@@ -1,0 +1,122 @@
+{% extends "base/base.html" %}
+{% block title %}Usuarios — SPwap{% endblock %}
+{% block nav_users %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page { flex: 1; padding: 32px; overflow-y: auto; }
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+  h1 { font-size: 20px; font-weight: 600; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+    text-decoration: none; border: none;
+    transition: opacity .15s;
+  }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { opacity: .9; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; padding: 10px 16px;
+    font-size: 12px; font-weight: 500;
+    color: var(--text3); text-transform: uppercase; letter-spacing: .05em;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+  tbody tr:hover { background: var(--bg2); }
+  td { padding: 12px 16px; font-size: 14px; }
+  .pill {
+    display: inline-block; padding: 2px 10px;
+    border-radius: 100px; font-size: 12px; font-weight: 500;
+  }
+  .pill-admin { background: #1e3a5f; color: #93c5fd; }
+  .pill-supervisor { background: #1a3326; color: #6ee7b7; }
+  .pill-agente { background: #1e1b2e; color: #a78bfa; }
+  .pill-inactive { background: #1f1f1f; color: var(--text3); }
+  .actions { display: flex; gap: 8px; }
+  .btn-sm {
+    padding: 5px 12px; font-size: 12px;
+    border-radius: var(--radius-sm); cursor: pointer;
+    font-family: inherit; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text2);
+    text-decoration: none;
+  }
+  .btn-sm:hover { background: var(--bg4); color: var(--text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-header">
+    <h1>Usuarios</h1>
+    <a href="{% url 'users:create' %}" class="btn btn-green">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+      </svg>
+      Nuevo usuario
+    </a>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Usuario</th>
+        <th>Nombre</th>
+        <th>Email</th>
+        <th>Rol</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td><code style="font-family: 'DM Mono', monospace; font-size: 13px;">{{ u.username }}</code></td>
+        <td>{{ u.get_full_name|default:"—" }}</td>
+        <td style="color: var(--text2);">{{ u.email|default:"—" }}</td>
+        <td>
+          <span class="pill pill-{{ u.rol }}">{{ u.get_rol_display }}</span>
+        </td>
+        <td>
+          {% if u.is_active %}
+          <span class="pill pill-agente">Activo</span>
+          {% else %}
+          <span class="pill pill-inactive">Inactivo</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="actions">
+            <a href="{% url 'users:update' u.pk %}" class="btn-sm">Editar</a>
+            {% if u != request.user %}
+            <button class="btn-sm toggle-btn" data-pk="{{ u.pk }}" data-active="{{ u.is_active|yesno:'true,false' }}">
+              {{ u.is_active|yesno:"Desactivar,Activar" }}
+            </button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" style="text-align:center; color: var(--text3); padding: 40px;">No hay usuarios.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const res = await fetch(`/usuarios/${btn.dataset.pk}/toggle/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}'},
+    });
+    const data = await res.json();
+    if (data.ok) location.reload();
+  });
+});
+</script>
+{% endblock %}
+{% endblock %}

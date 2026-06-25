@@ -1,0 +1,206 @@
+{% extends "base/base.html" %}
+{% block title %}Mi dashboard — SPwap{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dash-wrap { flex: 1; overflow-y: auto; padding: 28px 32px; }
+  .dash-header { margin-bottom: 28px; }
+  .dash-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .dash-header p { font-size: 13px; color: var(--text3); }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+  .stat-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px;
+  }
+  .stat-card .num { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .stat-card .lbl { font-size: 12px; color: var(--text3); font-weight: 500; }
+  .stat-card.bot .num { color: #7ab3e0; }
+  .stat-card.pendiente .num { color: #60a5fa; }
+  .stat-card.abierta .num { color: var(--green); }
+  .stat-card.cerrada .num { color: var(--text3); }
+
+  .section { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+  .section-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; font-weight: 600;
+  }
+  .section-badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    font-weight: 700;
+  }
+  .badge-bot { background: #0c1a2e; color: #7ab3e0; }
+  .badge-pendiente { background: #1e3a5f; color: #93c5fd; animation: pulse-b 1.5s infinite; }
+  .badge-abierta { background: #0a2215; color: var(--green); }
+  @keyframes pulse-b { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+  .conv-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    text-decoration: none; color: inherit; transition: background .1s;
+  }
+  .conv-row:last-child { border-bottom: none; }
+  .conv-row:hover { background: var(--bg3); }
+  .conv-avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--bg4); display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 15px;
+    color: var(--text2); flex-shrink: 0;
+  }
+  .conv-info { flex: 1; min-width: 0; }
+  .conv-name { font-weight: 600; font-size: 13px; color: var(--text); }
+  .conv-tel { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+  .conv-time { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+  .conv-unread {
+    background: var(--green); color: #000;
+    font-size: 10px; font-weight: 700;
+    min-width: 18px; height: 18px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 5px;
+  }
+  .conv-btn {
+    font-size: 11px; padding: 5px 12px; border-radius: var(--radius-sm);
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text2); text-decoration: none; font-weight: 500;
+    transition: all .1s; flex-shrink: 0;
+  }
+  .conv-btn:hover { background: var(--green); color: #000; border-color: var(--green); }
+
+  .empty-section { padding: 24px 20px; text-align: center; color: var(--text3); font-size: 13px; }
+
+  .inbox-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px; border-radius: var(--radius-sm);
+    background: var(--green); color: #000;
+    text-decoration: none; font-weight: 600; font-size: 13px;
+  }
+  .inbox-link:hover { opacity: .88; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrap">
+
+  <div class="dash-header">
+    <h1>Hola, {{ request.user.get_full_name|default:request.user.username }} 👋</h1>
+    <p>Tus conversaciones asignadas</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card bot">
+      <div class="num">{{ bot_activo.count }}</div>
+      <div class="lbl">🤖 Bot en curso</div>
+    </div>
+    <div class="stat-card pendiente">
+      <div class="num">{{ pendientes.count }}</div>
+      <div class="lbl">🔵 Listas para vos</div>
+    </div>
+    <div class="stat-card abierta">
+      <div class="num">{{ abiertas.count }}</div>
+      <div class="lbl">💬 En atención</div>
+    </div>
+    <div class="stat-card cerrada">
+      <div class="num">{{ cerradas_hoy }}</div>
+      <div class="lbl">✅ Cerradas hoy</div>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:12px; margin-bottom:24px; align-items:center;">
+    <a href="{% url 'whatsapp:inbox' %}" class="inbox-link">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+      </svg>
+      Abrir inbox completo
+    </a>
+  </div>
+
+  <!-- Pendientes (handoff del bot) -->
+  {% if pendientes %}
+  <div class="section">
+    <div class="section-header">
+      <span>Listas para atender</span>
+      <span class="section-badge badge-pendiente">{{ pendientes.count }} LISTO</span>
+    </div>
+    {% for conv in pendientes %}
+    <a href="{% url 'whatsapp:inbox' %}?conv={{ conv.pk }}" class="conv-row">
+      <div class="conv-avatar">{{ conv.get_display_name|slice:":1"|upper }}</div>
+      <div class="conv-info">
+        <div class="conv-name">{{ conv.get_display_name }}</div>
+        <div class="conv-tel">{{ conv.telefono }}</div>
+      </div>
+      {% if conv.ultimo_mensaje_at %}
+      <div class="conv-time">{{ conv.ultimo_mensaje_at|date:"d/m H:i" }}</div>
+      {% endif %}
+      {% if conv.mensajes_no_leidos %}
+      <div class="conv-unread">{{ conv.mensajes_no_leidos }}</div>
+      {% endif %}
+      <span class="conv-btn">Atender →</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- En atención -->
+  {% if abiertas %}
+  <div class="section">
+    <div class="section-header">
+      <span>En atención</span>
+      <span class="section-badge badge-abierta">{{ abiertas.count }}</span>
+    </div>
+    {% for conv in abiertas %}
+    <a href="{% url 'whatsapp:inbox' %}?conv={{ conv.pk }}" class="conv-row">
+      <div class="conv-avatar">{{ conv.get_display_name|slice:":1"|upper }}</div>
+      <div class="conv-info">
+        <div class="conv-name">{{ conv.get_display_name }}</div>
+        <div class="conv-tel">{{ conv.telefono }}</div>
+      </div>
+      {% if conv.ultimo_mensaje_at %}
+      <div class="conv-time">{{ conv.ultimo_mensaje_at|date:"d/m H:i" }}</div>
+      {% endif %}
+      {% if conv.mensajes_no_leidos %}
+      <div class="conv-unread">{{ conv.mensajes_no_leidos }}</div>
+      {% endif %}
+      <span class="conv-btn">Ver →</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Bot en curso -->
+  {% if bot_activo %}
+  <div class="section">
+    <div class="section-header">
+      <span>Bot manejando</span>
+      <span class="section-badge badge-bot">{{ bot_activo.count }}</span>
+    </div>
+    {% for conv in bot_activo %}
+    <a href="{% url 'whatsapp:inbox' %}?conv={{ conv.pk }}" class="conv-row">
+      <div class="conv-avatar" style="font-size:18px;">🤖</div>
+      <div class="conv-info">
+        <div class="conv-name">{{ conv.get_display_name }}</div>
+        <div class="conv-tel">{{ conv.telefono }}</div>
+      </div>
+      {% if conv.ultimo_mensaje_at %}
+      <div class="conv-time">{{ conv.ultimo_mensaje_at|date:"d/m H:i" }}</div>
+      {% endif %}
+      <span class="conv-btn">Ver →</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not pendientes and not abiertas and not bot_activo %}
+  <div style="text-align:center; padding:60px 20px; color:var(--text3);">
+    <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2" style="opacity:.3; margin-bottom:16px;">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <p style="font-size:15px; font-weight:500; margin-bottom:8px;">Todo al día 🎉</p>
+    <p style="font-size:13px;">No tenés conversaciones pendientes.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

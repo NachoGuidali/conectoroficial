@@ -1,0 +1,84 @@
+{% extends "base/base.html" %}
+{% block title %}{% if obj %}Editar campo{% else %}Nuevo campo{% endif %} — SPwap{% endblock %}
+{% block nav_contacts %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .page-header { padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg2); display: flex; align-items: center; gap: 12px; }
+  .page-body { flex: 1; overflow-y: auto; padding: 24px; }
+  .form-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; max-width: 480px; }
+  .form-row { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+  .form-label .req { color: var(--red); margin-left: 2px; }
+  .form-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text); font-size: 14px; font-family: inherit; outline: none; }
+  .form-input:focus { border-color: var(--green); }
+  .form-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; text-decoration: none; border: none; }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { opacity: .88; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { background: var(--bg3); color: var(--text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <a href="{% url 'contacts:campos' %}" style="color:var(--text3); text-decoration:none; font-size:13px;">← Campos</a>
+    <span style="font-size:16px; font-weight:600; flex:1;">{% if obj %}Editar campo{% else %}Nuevo campo{% endif %}</span>
+  </div>
+
+  <div class="page-body">
+    <div class="form-card">
+      <form method="post">
+        {% csrf_token %}
+        {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+
+        <div class="form-row">
+          <label class="form-label">Etiqueta (nombre visible) <span class="req">*</span></label>
+          <input type="text" name="etiqueta" class="form-input" required value="{{ obj.etiqueta|default:'' }}" placeholder="ej: Empresa, Ciudad, VIP...">
+          <div class="form-hint">Este es el nombre que ven los usuarios.</div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">Tipo de dato</label>
+          <select name="tipo" class="form-input">
+            {% for val, label in tipos %}
+            <option value="{{ val }}" {% if obj and obj.tipo == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">Grupo (opcional)</label>
+          <input type="text" name="grupo" class="form-input"
+                 value="{{ obj.grupo|default:'' }}"
+                 list="grupos-list" placeholder="Dejar vacío para todos los contactos">
+          <datalist id="grupos-list">
+            {% for g in grupos %}<option value="{{ g }}">{% endfor %}
+          </datalist>
+          <div class="form-hint">Vacío = aplica a todos. Con valor = solo contactos de ese grupo.</div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">Orden (para ordenar campos en el formulario)</label>
+          <input type="number" name="orden" class="form-input" value="{{ obj.orden|default:0 }}" min="0">
+        </div>
+
+        {% if obj %}
+        <div class="form-row" style="display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" name="activo" id="activo" {% if obj.activo %}checked{% endif %} style="width:auto;">
+          <label for="activo" class="form-label" style="margin:0; cursor:pointer;">Campo activo</label>
+        </div>
+        {% endif %}
+
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <button type="submit" class="btn btn-green">Guardar</button>
+          <a href="{% url 'contacts:campos' %}" class="btn btn-outline">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

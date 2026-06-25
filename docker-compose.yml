@@ -1,0 +1,64 @@
+version: '3.9'
+
+# Base — sin puertos expuestos al host.
+# Para local: agregar docker-compose.local.yml
+# Para prod:  agregar docker-compose.prod.yml
+
+services:
+
+  db:
+    image: postgres:15
+    mem_limit: 512m
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-waply}
+      POSTGRES_USER: ${POSTGRES_USER:-waply}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-waply123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    mem_limit: 128m
+    restart: unless-stopped
+
+  web:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120
+    mem_limit: 512m
+    volumes:
+      - .:/app
+      - static_files:/app/staticfiles
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  celery:
+    build: .
+    command: celery -A config worker -l info -Q default,whatsapp
+    mem_limit: 512m
+    volumes:
+      - .:/app
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  celery-beat:
+    build: .
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    mem_limit: 192m
+    volumes:
+      - .:/app
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  static_files:

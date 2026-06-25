@@ -1,0 +1,212 @@
+{% extends "base/base.html" %}
+{% block title %}{% if obj %}Editar contacto{% else %}Nuevo contacto{% endif %} — SPwap{% endblock %}
+{% block nav_contacts %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .page-header {
+    padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg2);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .page-body { flex: 1; overflow-y: auto; padding: 24px; }
+  .form-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; max-width: 640px;
+  }
+  .form-section { margin-bottom: 24px; }
+  .form-section-title { font-size: 12px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+  .form-label .req { color: var(--red); margin-left: 2px; }
+  .form-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 9px 12px;
+    color: var(--text); font-size: 14px; font-family: inherit; outline: none;
+  }
+  .form-input:focus { border-color: var(--green); }
+  textarea.form-input { resize: vertical; min-height: 80px; }
+  select.form-input { cursor: pointer; }
+  .form-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  .campo-item { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; }
+  .campo-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .campo-item-label { font-size: 13px; font-weight: 500; }
+  .campo-tipo-badge { font-size: 10px; color: var(--text3); background: var(--bg3); padding: 2px 6px; border-radius: 3px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; text-decoration: none; border: none; }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { opacity: .88; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { background: var(--bg3); color: var(--text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <a href="{% if obj %}{% url 'contacts:detail' obj.pk %}{% else %}{% url 'contacts:list' %}{% endif %}" style="color:var(--text3); text-decoration:none; font-size:13px;">← {% if obj %}{{ obj.nombre }}{% else %}Contactos{% endif %}</a>
+    <span style="font-size:16px; font-weight:600; flex:1;">{% if obj %}Editar contacto{% else %}Nuevo contacto{% endif %}</span>
+  </div>
+
+  <div class="page-body">
+    <div class="form-card">
+      <form method="post">
+        {% csrf_token %}
+
+        <!-- Datos obligatorios -->
+        <div class="form-section">
+          <div class="form-section-title">Datos básicos</div>
+          <div class="form-row">
+            <label class="form-label">Nombre <span class="req">*</span></label>
+            <input type="text" name="nombre" class="form-input" required
+                   value="{{ obj.nombre|default:prefill_nombre }}">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Teléfono <span class="req">*</span></label>
+            <input type="text" name="telefono" class="form-input" required
+                   value="{{ obj.telefono|default:prefill_tel }}"
+                   placeholder="+5491112345678">
+            <div class="form-hint">Incluí el código de país, ej: +549...</div>
+          </div>
+        </div>
+
+        <!-- Datos opcionales -->
+        <div class="form-section">
+          <div class="form-section-title">Datos opcionales</div>
+          <div class="form-row">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-input" value="{{ obj.email|default:'' }}">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Grupo</label>
+            <input type="text" name="grupo" id="grupo-input" class="form-input"
+                   value="{{ obj.grupo|default:prefill_grupo }}"
+                   list="grupos-list" placeholder="ej: Clientes, Proveedores..."
+                   oninput="updateCampos(this.value)">
+            <datalist id="grupos-list">
+              {% for g in grupos %}<option value="{{ g }}">{% endfor %}
+            </datalist>
+            <div class="form-hint">Vacío = sin grupo; permite filtrar y asignar campos específicos.</div>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Notas</label>
+            <textarea name="notas" class="form-input">{{ obj.notas|default:'' }}</textarea>
+          </div>
+        </div>
+
+        <!-- Campos personalizados -->
+        <div class="form-section" id="campos-section">
+          <div class="form-section-title" style="display:flex; justify-content:space-between; align-items:center;">
+            Campos personalizados
+            <a href="{% url 'contacts:campo_create' %}?next={{ request.path }}" style="font-size:11px; color:var(--green); text-decoration:none; text-transform:none; letter-spacing:0;">+ Definir nuevo campo</a>
+          </div>
+          <div id="campos-list">
+            {% if campos_con_valores %}
+              {% for campo, valor in campos_con_valores %}
+              <div class="campo-item">
+                <div class="campo-item-header">
+                  <span class="campo-item-label">{{ campo.etiqueta }}</span>
+                  <span class="campo-tipo-badge">{{ campo.get_tipo_display }}</span>
+                </div>
+                {% if campo.tipo == 'boolean' %}
+                <select name="campo_{{ campo.pk }}" class="form-input">
+                  <option value="">— No definido —</option>
+                  <option value="true" {% if valor|lower in 'true,1,si,sí,yes,verdadero' %}selected{% endif %}>Sí</option>
+                  <option value="false" {% if valor and valor|lower not in 'true,1,si,sí,yes,verdadero' %}selected{% endif %}>No</option>
+                </select>
+                {% elif campo.tipo == 'date' %}
+                <input type="date" name="campo_{{ campo.pk }}" class="form-input" value="{{ valor }}">
+                {% elif campo.tipo == 'number' %}
+                <input type="number" step="any" name="campo_{{ campo.pk }}" class="form-input" value="{{ valor }}">
+                {% elif campo.tipo == 'email' %}
+                <input type="email" name="campo_{{ campo.pk }}" class="form-input" value="{{ valor }}">
+                {% elif campo.tipo == 'url' %}
+                <input type="url" name="campo_{{ campo.pk }}" class="form-input" value="{{ valor }}">
+                {% else %}
+                <input type="text" name="campo_{{ campo.pk }}" class="form-input" value="{{ valor }}">
+                {% endif %}
+              </div>
+              {% endfor %}
+            {% elif campos %}
+              {% for campo in campos %}
+              <div class="campo-item">
+                <div class="campo-item-header">
+                  <span class="campo-item-label">{{ campo.etiqueta }}</span>
+                  <span class="campo-tipo-badge">{{ campo.get_tipo_display }}</span>
+                </div>
+                {% if campo.tipo == 'boolean' %}
+                <select name="campo_{{ campo.pk }}" class="form-input">
+                  <option value="">— No definido —</option>
+                  <option value="true">Sí</option>
+                  <option value="false">No</option>
+                </select>
+                {% elif campo.tipo == 'date' %}
+                <input type="date" name="campo_{{ campo.pk }}" class="form-input">
+                {% elif campo.tipo == 'number' %}
+                <input type="number" step="any" name="campo_{{ campo.pk }}" class="form-input">
+                {% elif campo.tipo == 'email' %}
+                <input type="email" name="campo_{{ campo.pk }}" class="form-input">
+                {% elif campo.tipo == 'url' %}
+                <input type="url" name="campo_{{ campo.pk }}" class="form-input">
+                {% else %}
+                <input type="text" name="campo_{{ campo.pk }}" class="form-input">
+                {% endif %}
+              </div>
+              {% endfor %}
+            {% else %}
+            <div style="color:var(--text3); font-size:13px;">
+              No hay campos personalizados aún.
+              <a href="{% url 'contacts:campo_create' %}?next={{ request.path }}" style="color:var(--green);">Crear uno</a>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button type="submit" class="btn btn-green">Guardar contacto</button>
+          <a href="{% if obj %}{% url 'contacts:detail' obj.pk %}{% else %}{% url 'contacts:list' %}{% endif %}" class="btn btn-outline">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let debounceTimer;
+function updateCampos(grupo) {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/contactos/api/campos/?grupo=${encodeURIComponent(grupo)}`);
+      const data = await res.json();
+      const container = document.getElementById('campos-list');
+      if (!data.campos.length) {
+        container.innerHTML = '<div style="color:var(--text3); font-size:13px;">No hay campos para este grupo. <a href="{% url "contacts:campo_create" %}?next={{ request.path }}" style="color:var(--green);">Crear uno</a></div>';
+        return;
+      }
+      container.innerHTML = data.campos.map(c => `
+        <div class="campo-item">
+          <div class="campo-item-header">
+            <span class="campo-item-label">${c.etiqueta}</span>
+            <span class="campo-tipo-badge">${c.tipo}</span>
+          </div>
+          ${renderInput(c)}
+        </div>`).join('');
+    } catch(e) {}
+  }, 400);
+}
+
+function renderInput(campo) {
+  const name = `campo_${campo.pk}`;
+  if (campo.tipo === 'boolean') return `<select name="${name}" class="form-input"><option value="">— No definido —</option><option value="true">Sí</option><option value="false">No</option></select>`;
+  if (campo.tipo === 'date') return `<input type="date" name="${name}" class="form-input">`;
+  if (campo.tipo === 'number') return `<input type="number" step="any" name="${name}" class="form-input">`;
+  if (campo.tipo === 'email') return `<input type="email" name="${name}" class="form-input">`;
+  if (campo.tipo === 'url') return `<input type="url" name="${name}" class="form-input">`;
+  return `<input type="text" name="${name}" class="form-input">`;
+}
+</script>
+{% endblock %}

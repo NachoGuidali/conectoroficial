@@ -1,0 +1,281 @@
+{% extends "base/base.html" %}
+{% block title %}{{ difusion.nombre }} — Difusiones{% endblock %}
+{% block nav_difusiones %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .page-header { padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--bg2); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .page-body { flex: 1; overflow-y: auto; padding: 24px; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .stat-val { font-size: 24px; font-weight: 700; }
+
+  .progress-bar-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 20px; }
+  .progress-bar { height: 8px; background: var(--bg4); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width .5s; }
+  .progress-fill.has-errors { background: linear-gradient(90deg, var(--green) 0%, var(--red) 100%); }
+
+  .cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .card-title { font-size: 12px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+
+  .filter-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; font-size: 12px; color: var(--text2); margin: 2px; }
+  .filter-chip strong { color: var(--text); }
+
+  .msg-box { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+
+  .contacts-table { width: 100%; border-collapse: collapse; }
+  .contacts-table th { text-align: left; font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .contacts-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); vertical-align: middle; }
+  .contacts-table tr:hover td { background: var(--bg2); }
+
+  .estado-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+  .estado-pending { background: var(--bg4); color: var(--text3); }
+  .estado-sent { background: #0a2215; color: var(--green); }
+  .estado-failed { background: #450a0a; color: #fca5a5; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; text-decoration: none; border: none; }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { opacity: .88; }
+  .btn-send { background: #1d4ed8; color: #fff; }
+  .btn-send:hover { background: #1e40af; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { background: var(--bg3); color: var(--text); }
+  .btn-red { background: transparent; border: 1px solid #7f1d1d; color: #fca5a5; }
+  .btn-red:hover { background: #450a0a; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .filter-bar input, .filter-bar select { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 12px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; }
+  .filter-bar input:focus { border-color: var(--green); }
+
+  .pagination { display: flex; gap: 8px; align-items: center; margin-top: 16px; font-size: 13px; color: var(--text3); }
+  .pagination a { color: var(--green); text-decoration: none; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .pagination a:hover { background: var(--bg3); }
+
+  .estado-difusion { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 5px 12px; border-radius: 20px; font-weight: 500; }
+  .estado-difusion.draft { background: var(--bg4); color: var(--text2); }
+  .estado-difusion.sending { background: #0c1a2e; color: #7ab3e0; }
+  .estado-difusion.completed { background: #0a2215; color: var(--green); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <a href="{% url 'difusiones:list' %}" style="color:var(--text3); text-decoration:none; font-size:13px;">← Difusiones</a>
+    <span style="font-size:16px; font-weight:600; flex:1;">{{ difusion.nombre }}</span>
+
+    <span class="estado-difusion {{ difusion.estado }}">
+      {% if difusion.estado == 'sending' %}<span style="animation:pulse 1s infinite;">●</span>{% endif %}
+      {{ difusion.get_estado_display }}
+    </span>
+
+    {% if difusion.estado == 'draft' %}
+    <form method="post" action="{% url 'difusiones:enviar' difusion.pk %}" style="display:inline;" onsubmit="return confirm('¿Enviar la difusión a {{ difusion.total }} contacto{{ difusion.total|pluralize:",s" }}?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-send">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+        Enviar ahora
+      </button>
+    </form>
+    <form method="post" action="{% url 'difusiones:eliminar' difusion.pk %}" style="display:inline;" onsubmit="return confirm('¿Eliminar esta difusión?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-red btn-sm">Eliminar</button>
+    </form>
+    {% endif %}
+
+    {% if difusion.estado == 'sending' and difusion.pendientes %}
+    <form method="post" action="{% url 'difusiones:reanudar' difusion.pk %}" style="display:inline;"
+          onsubmit="return confirm('¿Reanudar el envío? Se enviarán los {{ difusion.pendientes }} mensajes pendientes. Los ya enviados no se repetirán.');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline" style="border-color: #ca8a04; color: #fbbf24;">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Reanudar ({{ difusion.pendientes }} pendientes)
+      </button>
+    </form>
+    {% endif %}
+
+    {% if difusion.estado != 'draft' %}
+    <a href="{% url 'difusiones:exportar' difusion.pk %}" class="btn btn-outline btn-sm">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      Exportar CSV
+    </a>
+    <a href="{% url 'difusiones:exportar' difusion.pk %}?estado=sent" class="btn btn-outline btn-sm">
+      Solo enviados
+    </a>
+    <a href="{% url 'difusiones:exportar' difusion.pk %}?estado=failed" class="btn btn-outline btn-sm">
+      Solo fallidos
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="page-body">
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total</div>
+        <div class="stat-val">{{ difusion.total }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Enviados</div>
+        <div class="stat-val" style="color:var(--green);">{{ difusion.enviados }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Fallidos</div>
+        <div class="stat-val" style="color:{% if difusion.fallidos %}var(--red){% else %}var(--text3){% endif %};">{{ difusion.fallidos }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pendientes</div>
+        <div class="stat-val" style="color:var(--text3);">{{ difusion.pendientes }}</div>
+      </div>
+    </div>
+
+    <!-- Progress (if not draft) -->
+    {% if difusion.estado != 'draft' and difusion.total %}
+    <div class="progress-bar-wrap">
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text3);">
+        <span>Progreso</span>
+        <span>{{ difusion.porcentaje_enviado }}%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill {% if difusion.fallidos %}has-errors{% endif %}"
+             style="width:{{ difusion.porcentaje_enviado }}%"></div>
+      </div>
+      {% if difusion.enviado_at %}
+      <div style="font-size:11px; color:var(--text3); margin-top:6px;">
+        Iniciada: {{ difusion.enviado_at|date:"d/m/Y H:i" }}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Mensaje + Filtros usados -->
+    <div class="cards-row">
+      <div class="card">
+        <div class="card-title">Mensaje</div>
+        <div class="msg-box">{{ mensaje_preview }}</div>
+        {% if difusion.plantilla %}
+        <div style="font-size:11px; color:var(--text3); margin-top:8px;">Plantilla: {{ difusion.plantilla.nombre }}</div>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Filtros utilizados</div>
+        {% with f=difusion.filtros %}
+        {% if f.fecha_creacion %}
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px; color:var(--text3); margin-bottom:4px;">Fecha de creación</div>
+          <span class="filter-chip">
+            {% if f.fecha_creacion == 'today' %}Creados hoy
+            {% elif f.fecha_creacion == 'yesterday' %}Creados ayer
+            {% elif f.fecha_creacion == 'last7' %}Últimos 7 días
+            {% elif f.fecha_creacion == 'last30' %}Últimos 30 días
+            {% elif f.fecha_creacion == 'month' %}Este mes
+            {% else %}{{ f.fecha_creacion }}{% endif %}
+          </span>
+        </div>
+        {% endif %}
+        {% if f.grupo %}
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px; color:var(--text3); margin-bottom:4px;">Grupo</div>
+          <span class="filter-chip"><strong>{{ f.grupo }}</strong></span>
+        </div>
+        {% endif %}
+        {% if f.campos %}
+        <div>
+          <div style="font-size:11px; color:var(--text3); margin-bottom:6px;">Campos personalizados</div>
+          {% for cf in f.campos %}
+          <div class="filter-chip" style="display:flex; gap:4px; margin-bottom:4px;">
+            <strong>campo #{{ cf.campo_id }}</strong>
+            <span>{{ cf.operador|cut:"_" }}</span>
+            {% if cf.valor %}<span style="color:var(--green);">{{ cf.valor }}</span>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if not f.fecha_creacion and not f.grupo and not f.campos %}
+        <div style="color:var(--text3); font-size:13px;">Sin filtros (todos los contactos)</div>
+        {% endif %}
+        {% endwith %}
+        <div style="margin-top:12px; font-size:11px; color:var(--text3);">
+          Creada por {{ difusion.creado_por.get_full_name|default:difusion.creado_por.username|default:"—" }}
+          · {{ difusion.created_at|date:"d/m/Y H:i" }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Destinatarios -->
+    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:18px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div style="font-size:13px; font-weight:600;">Destinatarios ({{ total_dest }})</div>
+      </div>
+
+      <form method="get" class="filter-bar">
+        <input type="text" name="q" value="{{ q }}" placeholder="Buscar por nombre o teléfono...">
+        <select name="estado_f" onchange="this.form.submit()">
+          <option value="">Todos los estados</option>
+          <option value="pending" {% if estado_f == 'pending' %}selected{% endif %}>Pendientes</option>
+          <option value="sent" {% if estado_f == 'sent' %}selected{% endif %}>Enviados</option>
+          <option value="failed" {% if estado_f == 'failed' %}selected{% endif %}>Fallidos</option>
+        </select>
+        <button type="submit" class="btn btn-outline btn-sm">Filtrar</button>
+        {% if q or estado_f %}<a href="?p={{ page }}" class="btn btn-outline btn-sm">Limpiar</a>{% endif %}
+      </form>
+
+      {% if destinatarios %}
+      <table class="contacts-table">
+        <thead>
+          <tr>
+            <th>Contacto</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+            <th>Enviado</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in destinatarios %}
+          <tr>
+            <td>
+              {% if d.contacto %}
+              <a href="{% url 'contacts:detail' d.contacto.pk %}" style="color:var(--text); text-decoration:none; font-weight:500;">{{ d.nombre }}</a>
+              {% else %}
+              {{ d.nombre|default:"—" }}
+              {% endif %}
+            </td>
+            <td style="font-family:'DM Mono',monospace; font-size:12px; color:var(--text3);">{{ d.telefono }}</td>
+            <td><span class="estado-badge estado-{{ d.estado }}">{{ d.get_estado_display }}</span></td>
+            <td style="font-size:12px; color:var(--text3);">{{ d.enviado_at|date:"d/m H:i"|default:"—" }}</td>
+            <td style="font-size:11px; color:var(--red); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ d.error }}">{{ d.error|truncatechars:60 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="pagination">
+        {% if has_prev %}<a href="?p={{ prev_page }}{% if q %}&q={{ q }}{% endif %}{% if estado_f %}&estado_f={{ estado_f }}{% endif %}">← Anterior</a>{% endif %}
+        <span>Pág. {{ page }}</span>
+        {% if has_next %}<a href="?p={{ next_page }}{% if q %}&q={{ q }}{% endif %}{% if estado_f %}&estado_f={{ estado_f }}{% endif %}">Siguiente →</a>{% endif %}
+      </div>
+      {% else %}
+      <div style="text-align:center; padding:30px; color:var(--text3); font-size:13px;">No hay destinatarios{% if q %} con esa búsqueda{% endif %}.</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+{% if difusion.estado == 'sending' %}
+<script>
+// Auto-refresh while sending
+setTimeout(() => location.reload(), 5000);
+</script>
+{% endif %}
+{% endblock %}

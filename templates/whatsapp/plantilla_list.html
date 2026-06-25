@@ -1,0 +1,99 @@
+{% extends "base/base.html" %}
+{% block title %}Plantillas — SPwap{% endblock %}
+{% block nav_plantillas %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page { flex: 1; padding: 32px; overflow-y: auto; }
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  h1 { font-size: 20px; font-weight: 600; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; font-family: inherit;
+    cursor: pointer; text-decoration: none; border: none;
+  }
+  .btn-green { background: var(--green); color: #000; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px;
+  }
+  .card-name { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .card-body {
+    font-size: 13px; color: var(--text2); line-height: 1.5;
+    background: var(--bg); border-radius: var(--radius-sm);
+    padding: 10px; margin-bottom: 12px;
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 100px; overflow: hidden;
+  }
+  .card-vars { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .var-chip {
+    padding: 2px 8px; background: var(--bg4);
+    border-radius: 100px; font-size: 11px; font-family: 'DM Mono', monospace;
+    color: var(--text3);
+  }
+  .card-actions { display: flex; gap: 8px; }
+  .btn-sm {
+    padding: 5px 12px; font-size: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent; color: var(--text2);
+    text-decoration: none; cursor: pointer; font-family: inherit;
+  }
+  .btn-sm:hover { background: var(--bg3); color: var(--text); }
+  .btn-sm-red { border-color: var(--red); color: var(--red); }
+  .empty { text-align: center; color: var(--text3); padding: 60px; }
+  .estado-badge { display:inline-block; padding:2px 9px; border-radius:100px; font-size:11px; font-weight:600; margin-bottom:10px; }
+  .estado-local { background: var(--bg4); color: var(--text3); }
+  .estado-PENDING { background: #451a03; color: #fdba74; }
+  .estado-APPROVED { background: #064e3b; color: #6ee7b7; }
+  .estado-REJECTED { background: #450a0a; color: #fca5a5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-header">
+    <h1>Plantillas</h1>
+    <div style="display:flex; gap:10px;">
+      {% if user.is_supervisor %}
+      <form method="post" action="{% url 'whatsapp:plantilla_sync' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-sm">Sincronizar desde Meta</button>
+      </form>
+      {% endif %}
+      <a href="{% url 'whatsapp:plantilla_create' %}" class="btn btn-green">+ Nueva plantilla</a>
+    </div>
+  </div>
+
+  <div class="grid">
+    {% for p in plantillas %}
+    <div class="card">
+      <span class="estado-badge estado-{{ p.meta_estado }}">{{ p.get_meta_estado_display }}</span>
+      <div class="card-name">{{ p.nombre }}</div>
+      <div class="card-body">{{ p.cuerpo }}</div>
+      {% if p.meta_rejected_reason %}
+      <p style="font-size:12px; color:var(--red); margin-bottom:10px;">{{ p.meta_rejected_reason }}</p>
+      {% endif %}
+      {% if p.variables %}
+      <div class="card-vars">
+        {% for v in p.variables %}<span class="var-chip">{{ v }}</span>{% endfor %}
+      </div>
+      {% endif %}
+      <div class="card-actions">
+        <a href="{% url 'whatsapp:plantilla_update' p.pk %}" class="btn-sm">Editar</a>
+        <form method="post" action="{% url 'whatsapp:plantilla_delete' p.pk %}" style="display:inline;" onsubmit="return confirm('¿Eliminar plantilla?')">
+          {% csrf_token %}
+          <button type="submit" class="btn-sm btn-sm-red">Eliminar</button>
+        </form>
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty" style="grid-column:1/-1;">
+      <p>No hay plantillas. <a href="{% url 'whatsapp:plantilla_create' %}" style="color:var(--green);">Crear la primera</a></p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

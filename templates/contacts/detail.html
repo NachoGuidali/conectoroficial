@@ -1,0 +1,228 @@
+{% extends "base/base.html" %}
+{% block title %}{{ contacto.nombre }} — Contactos{% endblock %}
+{% block nav_contacts %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .page-header {
+    padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg2);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .page-body { flex: 1; overflow-y: auto; padding: 24px; }
+
+  .card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; margin-bottom: 16px;
+  }
+  .card-title { font-size: 12px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 16px; }
+
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .field-row { margin-bottom: 14px; }
+  .field-label { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
+  .field-value { font-size: 14px; color: var(--text); }
+  .field-value.mono { font-family: 'DM Mono', monospace; font-size: 13px; }
+
+  .tag { display: inline-block; background: var(--bg4); color: var(--text2); font-size: 12px; padding: 3px 10px; border-radius: 4px; }
+  .bool-true { color: var(--green); font-weight: 600; }
+  .bool-false { color: var(--text3); }
+
+  .campo-row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .campo-row:last-child { border-bottom: none; }
+  .campo-name { font-size: 13px; color: var(--text2); }
+  .campo-val { font-size: 13px; color: var(--text); }
+  .campo-empty { font-size: 13px; color: var(--text3); font-style: italic; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; text-decoration: none; border: none; }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { opacity: .88; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { background: var(--bg3); color: var(--text); }
+  .btn-red { background: transparent; border: 1px solid #7f1d1d; color: #fca5a5; }
+  .btn-red:hover { background: #450a0a; }
+
+  .avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--bg4); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 600; color: var(--text2);
+  }
+  .conv-card {
+    display: flex; align-items: center; gap: 10px; padding: 12px;
+    background: var(--bg3); border-radius: var(--radius-sm); text-decoration: none;
+    transition: background .1s;
+  }
+  .conv-card:hover { background: var(--bg4); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <a href="{% url 'contacts:list' %}" style="color:var(--text3); text-decoration:none; font-size:13px;">← Contactos</a>
+    <div class="avatar">{{ contacto.nombre|slice:":1"|upper }}</div>
+    <div style="flex:1;">
+      <div style="font-size:16px; font-weight:600;">{{ contacto.nombre }}</div>
+      <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace;">{{ contacto.telefono }}</div>
+    </div>
+    <a href="{% url 'contacts:update' contacto.pk %}" class="btn btn-outline">Editar</a>
+    <form method="post" action="{% url 'contacts:delete' contacto.pk %}" onsubmit="return confirm('¿Eliminar contacto?');" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-red">Eliminar</button>
+    </form>
+  </div>
+
+  <div class="page-body">
+    <div class="detail-grid">
+
+      <!-- Datos base -->
+      <div>
+        <div class="card">
+          <div class="card-title">Información del contacto</div>
+          <div class="field-row">
+            <div class="field-label">Nombre</div>
+            <div class="field-value">{{ contacto.nombre }}</div>
+          </div>
+          <div class="field-row">
+            <div class="field-label">Teléfono</div>
+            <div class="field-value mono">{{ contacto.telefono }}</div>
+          </div>
+          {% if contacto.email %}
+          <div class="field-row">
+            <div class="field-label">Email</div>
+            <div class="field-value">{{ contacto.email }}</div>
+          </div>
+          {% endif %}
+          {% if contacto.grupo %}
+          <div class="field-row">
+            <div class="field-label">Grupo</div>
+            <div class="field-value"><span class="tag">{{ contacto.grupo }}</span></div>
+          </div>
+          {% endif %}
+          {% if contacto.notas %}
+          <div class="field-row">
+            <div class="field-label">Notas</div>
+            <div class="field-value" style="font-size:13px; line-height:1.5; color:var(--text2);">{{ contacto.notas|linebreaksbr }}</div>
+          </div>
+          {% endif %}
+          <div class="field-row" style="margin-bottom:0;">
+            <div class="field-label">Agregado</div>
+            <div class="field-value" style="font-size:12px; color:var(--text3);">{{ contacto.created_at|date:"d/m/Y H:i" }}</div>
+          </div>
+        </div>
+
+        <!-- Conversación -->
+        <div class="card">
+          <div class="card-title">Conversación</div>
+          {% if conversacion %}
+          <a href="{% url 'whatsapp:inbox' %}?conv={{ conversacion.pk }}" class="conv-card">
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" style="color:var(--green)"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+            <div>
+              <div style="font-size:13px; color:var(--text);">Ver conversación</div>
+              {% if conversacion.ultimo_mensaje_at %}
+              <div style="font-size:11px; color:var(--text3);">Último mensaje: {{ conversacion.ultimo_mensaje_at|date:"d/m/Y H:i" }}</div>
+              {% endif %}
+            </div>
+          </a>
+          {% else %}
+          <div style="color:var(--text3); font-size:13px; margin-bottom:12px;">Sin conversación activa</div>
+          <a href="{% url 'whatsapp:inbox' %}?new=1&tel={{ contacto.telefono }}" class="btn btn-green" style="font-size:13px;">
+            Iniciar conversación
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Campos personalizados -->
+      <div>
+        <div class="card">
+          <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+            Campos personalizados
+            <a href="{% url 'contacts:campo_create' %}?next={{ request.path }}" style="font-size:11px; color:var(--green); text-decoration:none; text-transform:none; letter-spacing:0;">+ Agregar campo</a>
+          </div>
+          {% if campos_con_valores %}
+          {% for campo, valor in campos_con_valores %}
+          <div class="campo-row">
+            <span class="campo-name">{{ campo.etiqueta }}
+              {% if campo.grupo %}<span style="font-size:10px; color:var(--text3); margin-left:4px;">({{ campo.grupo }})</span>{% endif %}
+            </span>
+            {% if valor %}
+              {% if campo.tipo == 'boolean' %}
+                <span class="{% if valor|lower in 'true,1,si,sí,yes,verdadero' %}bool-true{% else %}bool-false{% endif %}">
+                  {% if valor|lower in 'true,1,si,sí,yes,verdadero' %}Sí{% else %}No{% endif %}
+                </span>
+              {% elif campo.tipo == 'url' %}
+                <a href="{{ valor }}" target="_blank" class="campo-val" style="color:var(--blue);">{{ valor|truncatechars:40 }}</a>
+              {% else %}
+                <span class="campo-val">{{ valor|truncatechars:60 }}</span>
+              {% endif %}
+            {% else %}
+              <span class="campo-empty">—</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+          {% else %}
+          <div style="color:var(--text3); font-size:13px;">
+            No hay campos definidos.
+            <a href="{% url 'contacts:campos' %}" style="color:var(--green);">Administrar campos</a>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="card">
+          <div class="card-title">Archivos compartidos</div>
+          {% if archivos %}
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            {% for a in archivos %}
+              {% if a.tipo == 'image' %}
+                {% if a.media_url %}
+                <a href="{{ a.media_url }}" target="_blank" title="{{ a.timestamp|date:'d/m/Y H:i' }}">
+                  <img src="{{ a.media_url }}" style="width:72px; height:72px; object-fit:cover; border-radius:6px; border:1px solid var(--border);"
+                       onerror="this.parentElement.innerHTML='<div style=\'width:72px;height:72px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:20px;\'>🖼</div>'">
+                </a>
+                {% else %}
+                <div style="width:72px; height:72px; border-radius:6px; border:1px solid var(--border); background:var(--bg3); display:flex; align-items:center; justify-content:center; font-size:20px;" title="{{ a.timestamp|date:'d/m/Y H:i' }}">🖼</div>
+                {% endif %}
+              {% elif a.tipo == 'document' %}
+                {% if a.media_url %}
+                <a href="{{ a.media_url }}" target="_blank"
+                   style="display:flex; align-items:center; gap:6px; padding:8px 12px; background:var(--bg2); border:1px solid var(--border); border-radius:6px; font-size:12px; color:var(--text2); text-decoration:none; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                  📄 {{ a.media_filename|default:"Documento" }}
+                </a>
+                {% else %}
+                <div style="display:flex; align-items:center; gap:6px; padding:8px 12px; background:var(--bg2); border:1px solid var(--border); border-radius:6px; font-size:12px; color:var(--text3); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                  📄 {{ a.media_filename|default:"Documento" }}
+                </div>
+                {% endif %}
+              {% elif a.tipo == 'audio' %}
+                <div style="background:var(--bg2); border:1px solid var(--border); border-radius:6px; padding:8px; width:100%;">
+                  {% if a.media_url %}
+                  <audio controls style="height:32px; width:100%; max-width:280px;"><source src="{{ a.media_url }}"></audio>
+                  {% else %}
+                  <span style="font-size:12px; color:var(--text3);">🎵 Audio (no disponible)</span>
+                  {% endif %}
+                </div>
+              {% elif a.tipo == 'video' %}
+                {% if a.media_url %}
+                <a href="{{ a.media_url }}" target="_blank"
+                   style="display:flex; align-items:center; gap:6px; padding:8px 12px; background:var(--bg2); border:1px solid var(--border); border-radius:6px; font-size:12px; color:var(--green); text-decoration:none;">
+                  🎥 {{ a.media_filename|default:"Video" }}
+                </a>
+                {% else %}
+                <div style="display:flex; align-items:center; gap:6px; padding:8px 12px; background:var(--bg2); border:1px solid var(--border); border-radius:6px; font-size:12px; color:var(--text3);">
+                  🎥 {{ a.media_filename|default:"Video" }}
+                </div>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          </div>
+          {% else %}
+          <p style="font-size:13px; color:var(--text3);">No hay archivos intercambiados con este contacto aún.</p>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

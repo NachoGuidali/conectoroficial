@@ -1,0 +1,10 @@
+version: '3.9'
+
+# Override de producción para sociosras.supregsolutions.com
+# Uso: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+services:
+
+  web:
+    ports:
+      - "127.0.0.1:8005:8000"   # Nginx proxy → 127.0.0.1:8005

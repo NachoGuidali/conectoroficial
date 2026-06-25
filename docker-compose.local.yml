@@ -1,0 +1,14 @@
+version: '3.9'
+
+# Override para desarrollo local.
+# Uso: docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+
+services:
+
+  web:
+    ports:
+      - "8000:8000"
+
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"   # Acceso local para herramientas como DBeaver / TablePlus

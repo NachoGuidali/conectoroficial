@@ -1,0 +1,150 @@
+{% extends "base/base.html" %}
+{% block title %}Vista previa — Importar contactos{% endblock %}
+{% block nav_contacts %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .page-header { padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg2); display: flex; align-items: center; gap: 12px; }
+  .page-body { flex: 1; overflow-y: auto; padding: 24px; }
+
+  .section { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+  .section-title { font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+
+  .map-table { width: 100%; border-collapse: collapse; }
+  .map-table th { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing:.05em; padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; }
+  .map-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  .map-table tr:last-child td { border-bottom: none; }
+
+  .preview-wrap { overflow-x: auto; }
+  .preview-table { border-collapse: collapse; min-width: 100%; }
+  .preview-table th { font-size: 11px; color: var(--text3); font-weight: 500; padding: 6px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; text-align: left; }
+  .preview-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text2); white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+  .preview-table tr:last-child td { border-bottom: none; }
+
+  .form-select { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; cursor: pointer; min-width: 170px; }
+  .form-select:focus { border-color: var(--green); }
+
+  .tipo-wrap { display: none; margin-top: 6px; }
+  .tipo-wrap.visible { display: block; }
+
+  .col-mono { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 600; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; text-decoration: none; border: none; }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { opacity: .88; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { background: var(--bg3); color: var(--text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <a href="{% url 'contacts:importar' %}" style="color:var(--text3); text-decoration:none; font-size:13px;">← Volver</a>
+    <span style="font-size:16px; font-weight:600; flex:1;">Vista previa — {{ filename }}</span>
+    <span style="font-size:13px; color:var(--text3);">{{ total_rows }} fila{{ total_rows|pluralize:",s" }} encontrada{{ total_rows|pluralize:",s" }}</span>
+  </div>
+
+  <div class="page-body">
+    <form method="post" action="{% url 'contacts:importar' %}">
+      {% csrf_token %}
+      <input type="hidden" name="step" value="2">
+
+      <!-- 1. Mapeo de columnas -->
+      <div class="section">
+        <div class="section-title">1. Asigná cada columna a su rol</div>
+        <table class="map-table">
+          <thead>
+            <tr>
+              <th>Columna del archivo</th>
+              <th>Rol en el sistema</th>
+              <th>Tipo de dato <span style="font-weight:400; text-transform:none; letter-spacing:0;">(solo campos personalizados)</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for hd in header_data %}
+            <tr>
+              <td><span class="col-mono">{{ hd.header }}</span></td>
+              <td>
+                <select name="rol_{{ hd.i }}" class="form-select" onchange="toggleTipo(this, {{ hd.i }})">
+                  {% for val, label in roles %}
+                  <option value="{{ val }}" {% if hd.auto_role == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <div id="tipo_wrap_{{ hd.i }}" class="tipo-wrap {% if hd.is_campo %}visible{% endif %}">
+                  <select name="tipo_{{ hd.i }}" class="form-select">
+                    {% for val, label in tipos %}
+                    <option value="{{ val }}" {% if hd.auto_tipo == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 2. Vista previa de datos -->
+      <div class="section">
+        <div class="section-title">2. Vista previa (primeras {{ preview_rows|length }} filas)</div>
+        <div class="preview-wrap">
+          <table class="preview-table">
+            <thead>
+              <tr>
+                {% for hd in header_data %}<th>{{ hd.header }}</th>{% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in preview_rows %}
+              <tr>
+                {% for cell in row %}<td title="{{ cell }}">{{ cell|truncatechars:30 }}</td>{% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if total_rows > preview_rows|length %}
+        <p style="margin-top:10px; font-size:12px; color:var(--text3);">
+          Mostrando {{ preview_rows|length }} de {{ total_rows }} filas. Se importarán todas.
+        </p>
+        {% endif %}
+      </div>
+
+      <!-- 3. Opciones -->
+      <div class="section">
+        <div class="section-title">3. Opciones</div>
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13px; color:var(--text2); margin-bottom:10px;">
+          <input type="checkbox" name="update_existing" checked style="width:auto;">
+          Actualizar contactos existentes que tengan el mismo número de teléfono
+        </label>
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13px; color:var(--text2);">
+          <input type="checkbox" name="agregar_prefijo_ar" checked style="width:auto;">
+          Agregar prefijo <strong>+549</strong> a números sin código de país
+          <span style="font-size:11px; color:var(--text3);">ej: 1122334455 → +5491122334455</span>
+        </label>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:center;">
+        <button type="submit" class="btn btn-green">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          Importar {{ total_rows }} contacto{{ total_rows|pluralize:",s" }}
+        </button>
+        <a href="{% url 'contacts:importar' %}" class="btn btn-outline">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleTipo(select, idx) {
+  const wrap = document.getElementById(`tipo_wrap_${idx}`);
+  wrap.classList.toggle('visible', select.value === 'campo');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base/base.html" %}
+{% block title %}{% if obj %}Editar{% else %}Nuevo{% endif %} usuario — SPwap{% endblock %}
+{% block nav_users %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page { flex: 1; padding: 32px; overflow-y: auto; }
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 32px;
+    max-width: 520px;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+  input, select {
+    width: 100%; background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px; color: var(--text);
+    font-size: 14px; font-family: inherit;
+    outline: none; transition: border-color .15s;
+  }
+  input:focus, select:focus { border-color: var(--green); }
+  select option { background: var(--bg2); }
+  .hint { font-size: 12px; color: var(--text3); margin-top: 4px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .actions { display: flex; gap: 12px; margin-top: 24px; }
+  .btn {
+    padding: 9px 20px; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 500; font-family: inherit;
+    cursor: pointer; border: none; text-decoration: none;
+    display: inline-flex; align-items: center;
+  }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn:hover { opacity: .85; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="card">
+    <h1>{% if obj %}Editar usuario{% else %}Nuevo usuario{% endif %}</h1>
+    <form method="post">
+      {% csrf_token %}
+      {% if not obj %}
+      <div class="form-group">
+        <label>Usuario *</label>
+        <input type="text" name="username" value="{{ data.username|default:'' }}" required placeholder="ej: juan.garcia">
+      </div>
+      {% endif %}
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" name="first_name" value="{{ obj.first_name|default:data.first_name|default:'' }}">
+        </div>
+        <div class="form-group">
+          <label>Apellido</label>
+          <input type="text" name="last_name" value="{{ obj.last_name|default:data.last_name|default:'' }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ obj.email|default:data.email|default:'' }}">
+      </div>
+      <div class="form-group">
+        <label>Teléfono</label>
+        <input type="text" name="telefono" value="{{ obj.telefono|default:data.telefono|default:'' }}" placeholder="+54911...">
+      </div>
+      <div class="form-group">
+        <label>Rol</label>
+        <select name="rol">
+          {% for val, label in rol_choices %}
+          <option value="{{ val }}" {% if obj.rol == val or data.rol == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Contraseña{% if obj %} (dejar vacío para no cambiar){% endif %}</label>
+        <input type="password" name="password" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" name="recibe_asignaciones" style="width: auto;" {% if data.recibe_asignaciones or not obj %}checked{% endif %}>
+          Recibe asignaciones automáticas de conversaciones entrantes
+        </label>
+        <div class="hint">Desactivar si este agente solo va a hacer conversaciones salientes y no debe recibir conversaciones nuevas automáticamente.</div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn btn-green">Guardar</button>
+        <a href="{% url 'users:list' %}" class="btn btn-outline">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

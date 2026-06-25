@@ -1,0 +1,251 @@
+{% extends "base/base.html" %}
+{% block title %}Dashboard supervisor — SPwap{% endblock %}
+{% block nav_dashboard_sup %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dash-wrap { flex:1; overflow-y:auto; padding:28px 32px; }
+  h1 { font-size:20px; font-weight:700; margin-bottom:4px; }
+  .sub { font-size:13px; color:var(--text3); margin-bottom:24px; }
+
+  /* Grid de agentes */
+  .agents-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; margin-bottom:28px; }
+  .agent-card {
+    background:var(--bg2); border:1px solid var(--border);
+    border-radius:var(--radius); padding:16px 18px;
+    transition:border-color .15s;
+    display:block; position:relative;
+  }
+  .agent-card:hover { border-color:var(--green); }
+  .agent-card.selected { border-color:var(--green); background:var(--bg3); }
+  .agent-card.off { opacity:.6; }
+  .agent-card-link { display:block; text-decoration:none; color:inherit; }
+
+  .agent-asig {
+    margin-top:12px; padding-top:10px; border-top:1px solid var(--border);
+    display:flex; align-items:center; gap:6px;
+  }
+  .agent-asig label {
+    display:flex; align-items:center; gap:6px; cursor:pointer;
+    font-size:11px; color:var(--text3);
+  }
+  .agent-asig input[type=checkbox] { width:auto; cursor:pointer; }
+
+  .agent-top { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .agent-avatar {
+    width:36px; height:36px; border-radius:50%;
+    background:var(--bg4); display:flex; align-items:center;
+    justify-content:center; font-weight:700; font-size:14px; color:var(--text2);
+    flex-shrink:0;
+  }
+  .agent-name { font-weight:600; font-size:13px; }
+  .agent-status {
+    font-size:9px; font-weight:700; letter-spacing:.04em;
+    padding:2px 6px; border-radius:3px; margin-top:2px; display:inline-block;
+  }
+  .status-turno { background:#064e3b; color:#6ee7b7; }
+  .status-off { background:var(--bg4); color:var(--text3); }
+  .status-inactive { background:#450a0a; color:#fca5a5; }
+
+  .agent-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+  .agent-stat { text-align:center; }
+  .agent-stat .n { font-size:18px; font-weight:700; }
+  .agent-stat .l { font-size:10px; color:var(--text3); }
+  .n-bot { color:#7ab3e0; }
+  .n-pend { color:#60a5fa; }
+  .n-open { color:var(--green); }
+
+  /* Panel de conversaciones del agente */
+  .conv-panel {
+    background:var(--bg2); border:1px solid var(--border);
+    border-radius:var(--radius); margin-bottom:20px;
+  }
+  .panel-header {
+    padding:14px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .panel-title { font-size:14px; font-weight:600; flex:1; }
+
+  .conv-row {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 20px; border-bottom:1px solid var(--border);
+    font-size:13px;
+  }
+  .conv-row:last-child { border-bottom:none; }
+  .conv-name { font-weight:500; flex:1; min-width:0; }
+  .conv-tel { font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; }
+  .conv-time { font-size:11px; color:var(--text3); flex-shrink:0; }
+
+  .estado-chip {
+    font-size:10px; padding:2px 7px; border-radius:10px; font-weight:600; flex-shrink:0;
+  }
+  .chip-bot { background:#0c1a2e; color:#7ab3e0; }
+  .chip-pendiente { background:#1e3a5f; color:#93c5fd; }
+  .chip-abierta { background:#0a2215; color:var(--green); }
+
+  .conv-link {
+    font-size:11px; padding:4px 10px; border-radius:var(--radius-sm);
+    background:var(--bg3); border:1px solid var(--border);
+    color:var(--text2); text-decoration:none; flex-shrink:0;
+  }
+  .conv-link:hover { border-color:var(--green); color:var(--green); }
+
+  /* Sin asignar */
+  .section { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:20px; }
+  .section-h { padding:14px 20px; border-bottom:1px solid var(--border); font-weight:600; font-size:13px; display:flex; gap:10px; align-items:center; }
+  .badge-red { background:#450a0a; color:#fca5a5; font-size:11px; padding:2px 8px; border-radius:10px; font-weight:700; }
+
+  .btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; font-family:inherit; cursor:pointer; border:none; text-decoration:none; }
+  .btn-green { background:var(--green); color:#000; }
+  .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text2); }
+  .btn-outline:hover { background:var(--bg3); }
+  .btn-red { background:transparent; border:1px solid #7f1d1d; color:#fca5a5; }
+  .btn-red:hover { background:#450a0a; }
+
+  select.inline-select {
+    background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:6px 10px; color:var(--text); font-size:12px; font-family:inherit; outline:none;
+  }
+  select.inline-select:focus { border-color:var(--green); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrap">
+
+  <h1>Dashboard supervisor</h1>
+  <p class="sub">Estado de agentes y conversaciones asignadas</p>
+
+  {% if messages %}
+  {% for m in messages %}
+  <div style="background:#0a2215; border:1px solid var(--green); border-radius:var(--radius-sm); padding:10px 16px; margin-bottom:16px; font-size:13px; color:var(--green);">
+    {{ m }}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- Grid de agentes -->
+  <div class="agents-grid">
+    {% for ag in agentes %}
+    <div class="agent-card {% if agente_sel.pk == ag.pk %}selected{% endif %} {% if not ag.is_active %}off{% endif %}">
+      <a href="?agente={{ ag.pk }}" class="agent-card-link">
+        <div class="agent-top">
+          <div class="agent-avatar">{{ ag.get_full_name|default:ag.username|slice:":1"|upper }}</div>
+          <div>
+            <div class="agent-name">{{ ag.get_full_name|default:ag.username }}</div>
+            {% if not ag.is_active %}
+            <span class="agent-status status-inactive">INACTIVO</span>
+            {% elif ag.en_turno %}
+            <span class="agent-status status-turno">EN TURNO</span>
+            {% else %}
+            <span class="agent-status status-off">FUERA</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="agent-stats">
+          <div class="agent-stat">
+            <div class="n n-bot">{{ ag.bot }}</div>
+            <div class="l">Bot</div>
+          </div>
+          <div class="agent-stat">
+            <div class="n n-pend">{{ ag.pendiente }}</div>
+            <div class="l">Listos</div>
+          </div>
+          <div class="agent-stat">
+            <div class="n n-open">{{ ag.abierta }}</div>
+            <div class="l">Abiertos</div>
+          </div>
+        </div>
+      </a>
+      <form method="post" class="agent-asig">
+        {% csrf_token %}
+        <input type="hidden" name="toggle_recibe_pk" value="{{ ag.pk }}">
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <label>
+          <input type="checkbox" name="_chk" {% if ag.recibe_asignaciones %}checked{% endif %} onchange="this.form.submit()">
+          En cola de asignación
+        </label>
+      </form>
+    </div>
+    {% empty %}
+    <p style="color:var(--text3); font-size:13px;">No hay agentes creados.</p>
+    {% endfor %}
+  </div>
+
+  <!-- Panel conversaciones del agente seleccionado -->
+  {% if agente_sel %}
+  <div class="conv-panel">
+    <div class="panel-header">
+      <span class="panel-title">
+        Conversaciones de {{ agente_sel.get_full_name|default:agente_sel.username }}
+        {% if not agente_sel.en_turno %}<span style="font-size:11px; color:var(--text3); font-weight:400;"> — fuera de turno</span>{% endif %}
+      </span>
+
+      <!-- Reasignar todas -->
+      <form method="post" style="display:flex; gap:8px; align-items:center;" onsubmit="return confirm('¿Reasignar todas las conversaciones de este agente?');">
+        {% csrf_token %}
+        <input type="hidden" name="desde_agente" value="{{ agente_sel.pk }}">
+        <select name="hacia_agente" class="inline-select">
+          <option value="">Auto-redistribuir</option>
+          {% for ag in todos_agentes %}
+          {% if ag.pk != agente_sel.pk %}
+          <option value="{{ ag.pk }}">→ {{ ag.get_full_name|default:ag.username }}{% if ag.en_turno %} ✓{% endif %}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-red">Reasignar todas</button>
+      </form>
+
+      <a href="?agente={{ agente_sel.pk }}" class="btn btn-outline">↻ Actualizar</a>
+    </div>
+
+    {% for conv in convs_agente %}
+    <div class="conv-row">
+      <div style="flex:1; min-width:0;">
+        <div class="conv-name">{{ conv.get_display_name }}</div>
+        <div class="conv-tel">{{ conv.telefono }}</div>
+      </div>
+      {% if conv.bot_n8n_activo %}
+      <span class="estado-chip chip-bot">🤖 Bot</span>
+      {% elif conv.estado == 'pendiente' %}
+      <span class="estado-chip chip-pendiente">🔵 Listo</span>
+      {% elif conv.estado == 'abierta' %}
+      <span class="estado-chip chip-abierta">💬 Abierta</span>
+      {% endif %}
+      {% if conv.ultimo_mensaje_at %}
+      <span class="conv-time">{{ conv.ultimo_mensaje_at|date:"d/m H:i" }}</span>
+      {% endif %}
+      <a href="{% url 'whatsapp:inbox' %}?conv={{ conv.pk }}" class="conv-link" target="_blank">Ver →</a>
+    </div>
+    {% empty %}
+    <div style="padding:24px 20px; text-align:center; color:var(--text3); font-size:13px;">
+      Este agente no tiene conversaciones abiertas.
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Sin asignar -->
+  {% if sin_asignar %}
+  <div class="section">
+    <div class="section-h">
+      <span>Sin agente asignado</span>
+      <span class="badge-red">{{ sin_asignar|length }}</span>
+    </div>
+    {% for conv in sin_asignar %}
+    <div class="conv-row">
+      <div style="flex:1; min-width:0;">
+        <div class="conv-name">{{ conv.get_display_name }}</div>
+        <div class="conv-tel">{{ conv.telefono }}</div>
+      </div>
+      {% if conv.ultimo_mensaje_at %}
+      <span class="conv-time">{{ conv.ultimo_mensaje_at|date:"d/m H:i" }}</span>
+      {% endif %}
+      <a href="{% url 'whatsapp:inbox' %}?conv={{ conv.pk }}" class="conv-link" target="_blank">Ver →</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
